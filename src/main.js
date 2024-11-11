@@ -1,41 +1,12 @@
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createTube } from './TubeGeometry.js';
+import { createConvex } from './ConvexGeometry.js';
+import { createLathe } from './LatheGeometry.js';
+import GUI from 'https://cdn.jsdelivr.net/npm/lil-gui@0.17.0/dist/lil-gui.esm.min.js';
 
-
-// Define controls for number of points
-const controls = { numberOfPoints:12}; // Adjust number as needed
-
-// Generate random points for the curve
-const points = [];
-for (let i = 0; i < controls.numberOfPoints; i++) {
-   const randomX = -20 + Math.round(Math.random() * 50);
-   const randomY = -15 + Math.round(Math.random() * 40);
-   const randomZ = -20 + Math.round(Math.random() * 40);
-   points.push(new THREE.Vector3(randomX, randomY, randomZ));
-}
-
-// add first point to the end to close the curve
-// points.push(points[0]);
-
-// Define TubeGeometry properties
-const segments = 1000;
-const radius = 2;
-const radialSegments = 100;
-const closed = false;
-
-// Create the tube geometry and mesh
-const tubeGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), segments, radius, radialSegments, closed);
-const tubeMesh = createMesh(tubeGeometry);
-
-// Add the mesh to the scene
+// Scene and camera setup
 const scene = new THREE.Scene();
-scene.add(tubeMesh);
-
-// add axes helper
-const axesHelper = new THREE.AxesHelper(5);
-// scene.add(axesHelper);
-
-// Define the camera and renderer
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 50;
 
@@ -43,27 +14,109 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const control = new OrbitControls(camera, renderer.domElement);
-control.update();
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.update();
 
-// Create a function to add material to the mesh
-function createMesh(geometry) {
-   const material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide });
-   return new THREE.Mesh(geometry, material);
+let currentMesh;
+
+// Shared Controls
+const controls = {
+    geometryType: 'Tube', // Default geometry type
+};
+
+// Tube-specific controls
+const tubeControls = {
+    numberOfPoints: 12,
+    segments: 100,
+    radius: 1.5,
+    closed: false,
+    radialSegments: 8,
+};
+
+// Lathe-specific controls
+const latheControls = {
+    numberOfPoints: 12,
+    segments: 100,
+    phiStart: 0,
+    phiLength: Math.PI * 2,
+};
+
+// Convex-specific controls
+const convexControls = {
+   numberOfPoints: 20,
+   pointSize: 0.2,
+   pointColor: 0xff0000,
+};
+
+// GUI Setup
+const gui = new GUI();
+const geometryTypeController = gui.add(controls, 'geometryType', ['Tube', 'Convex', 'Lathe']).onChange(updateGeometry);
+
+// Tube GUI controls
+const tubeGuiFolder = gui.addFolder('Tube Controls');
+tubeGuiFolder.add(tubeControls, 'numberOfPoints', 3, 20, 1).onChange(updateGeometry);
+tubeGuiFolder.add(tubeControls, 'segments', 50, 200, 1).onChange(updateGeometry);
+tubeGuiFolder.add(tubeControls, 'radius', 0.5, 5, 0.1).onChange(updateGeometry);
+tubeGuiFolder.add(tubeControls, 'closed').onChange(updateGeometry);
+tubeGuiFolder.add(tubeControls, 'radialSegments', 3, 20, 1).onChange(updateGeometry);
+
+// Lathe GUI controls
+const latheGuiFolder = gui.addFolder('Lathe Controls');
+latheGuiFolder.add(latheControls, 'numberOfPoints', 3, 50, 1).onChange(updateGeometry);
+latheGuiFolder.add(latheControls, 'segments', 4, 80, 1).onChange(updateGeometry);
+latheGuiFolder.add(latheControls, 'phiStart', 0, Math.PI * 2, 0.1).onChange(updateGeometry);
+latheGuiFolder.add(latheControls, 'phiLength', 0, Math.PI * 2, 0.1).onChange(updateGeometry);
+
+// GUI Setup for Convex controls
+const convexGuiFolder = gui.addFolder('Convex Controls');
+convexGuiFolder.add(convexControls, 'numberOfPoints', 3, 50, 1).onChange(updateGeometry);
+convexGuiFolder.add(convexControls, 'pointSize', 0.1, 1, 0.1).onChange(updateGeometry);
+convexGuiFolder.addColor(convexControls, 'pointColor').onChange(updateGeometry);
+convexGuiFolder.hide(); // Hide initially
+
+// Initially hide Lathe and Convex GUI controls
+latheGuiFolder.hide();
+
+// Function to update the displayed geometry based on selected type
+function updateGeometry() {
+    if (currentMesh) scene.remove(currentMesh);
+
+    // Show/hide relevant GUI folders
+    tubeGuiFolder.hide();
+    latheGuiFolder.hide();
+    convexGuiFolder.hide();
+
+    switch (controls.geometryType) {
+      case 'Tube':
+            currentMesh = createTube(tubeControls);
+            tubeGuiFolder.show();
+            break;
+      case 'Convex':
+         currentMesh = createConvex(convexControls);
+         convexGuiFolder.show();
+         break;
+      case 'Lathe':
+            currentMesh = createLathe(latheControls);
+            latheGuiFolder.show();
+            break;
+    }
+
+    scene.add(currentMesh);
 }
+
+// Initialize the first geometry
+updateGeometry();
 
 // Animation loop
 function animate() {
-   requestAnimationFrame(animate);
-   // tubeMesh.rotation.x += 0.01;
-   // tubeMesh.rotation.y += 0.01;
-   renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
 }
 animate();
 
-// Handle window resizing
+// Resize handler
 window.addEventListener('resize', () => {
-   camera.aspect = window.innerWidth / window.innerHeight;
-   camera.updateProjectionMatrix();
-   renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
