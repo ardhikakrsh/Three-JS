@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createTube } from './TubeGeometry.js';
 import { createConvex } from './ConvexGeometry.js';
 import { createLathe } from './LatheGeometry.js';
+import { createExtrude } from './ExtrudeGeometry.js';
 import GUI from 'https://cdn.jsdelivr.net/npm/lil-gui@0.17.0/dist/lil-gui.esm.min.js';
 
 // Scene and camera setup
@@ -16,6 +17,23 @@ document.body.appendChild(renderer.domElement);
 
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.update();
+
+// Light setup
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 1);
+pointLight.position.set(10, 10, 10);
+scene.add(pointLight);
+
+const pointLight2 = new THREE.PointLight(0xffffff, 1);
+pointLight2.position.set(-10, -10, 10);
+scene.add(pointLight2);
+
+const pointLight3 = new THREE.PointLight(0xffffff, 1);
+pointLight3.position.set(10, -10, -10);
+scene.add(pointLight3);
+
 
 let currentMesh;
 
@@ -48,9 +66,20 @@ const convexControls = {
    pointColor: 0xff0000,
 };
 
+// Extrude-specific controls
+const extrudeControls = {
+    steps: 2,
+    depth: 5,
+    bevelEnabled: true,
+    bevelThickness: 1,
+    bevelSize: 1,
+    bevelSegments: 3,
+    color: 0x0077ff,
+};
+
 // GUI Setup
 const gui = new GUI();
-const geometryTypeController = gui.add(controls, 'geometryType', ['Tube', 'Convex', 'Lathe']).onChange(updateGeometry);
+const geometryTypeController = gui.add(controls, 'geometryType', ['Tube', 'Convex', 'Lathe', 'Extrude']).onChange(updateGeometry);
 
 // Tube GUI controls
 const tubeGuiFolder = gui.addFolder('Tube Controls');
@@ -74,6 +103,17 @@ convexGuiFolder.add(convexControls, 'pointSize', 0.1, 1, 0.1).onChange(updateGeo
 convexGuiFolder.addColor(convexControls, 'pointColor').onChange(updateGeometry);
 convexGuiFolder.hide(); // Hide initially
 
+// GUI Setup for Extrude controls
+const extrudeGuiFolder = gui.addFolder('Extrude Controls');
+extrudeGuiFolder.add(extrudeControls, 'steps', 1, 10, 1).onChange(updateGeometry);
+extrudeGuiFolder.add(extrudeControls, 'depth', 1, 10, 1).onChange(updateGeometry);
+extrudeGuiFolder.add(extrudeControls, 'bevelEnabled').onChange(updateGeometry);
+extrudeGuiFolder.add(extrudeControls, 'bevelThickness', 0.1, 3, 0.1).onChange(updateGeometry);
+extrudeGuiFolder.add(extrudeControls, 'bevelSize', 0.1, 3, 0.1).onChange(updateGeometry);
+extrudeGuiFolder.add(extrudeControls, 'bevelSegments', 1, 30, 1).onChange(updateGeometry);
+extrudeGuiFolder.addColor(extrudeControls, 'color').onChange(updateGeometry);
+extrudeGuiFolder.hide();  // Sembunyikan folder ini saat awal
+
 // Initially hide Lathe and Convex GUI controls
 latheGuiFolder.hide();
 
@@ -85,21 +125,30 @@ function updateGeometry() {
     tubeGuiFolder.hide();
     latheGuiFolder.hide();
     convexGuiFolder.hide();
+    extrudeGuiFolder.hide();
+
+    console.log(controls.geometryType);
 
     switch (controls.geometryType) {
-      case 'Tube':
+        case 'Tube':
             currentMesh = createTube(tubeControls);
             tubeGuiFolder.show();
             break;
-      case 'Convex':
-         currentMesh = createConvex(convexControls);
-         convexGuiFolder.show();
-         break;
-      case 'Lathe':
+        case 'Convex':
+            currentMesh = createConvex(convexControls);
+            convexGuiFolder.show();
+            break;
+        case 'Lathe':
             currentMesh = createLathe(latheControls);
             latheGuiFolder.show();
             break;
+        case 'Extrude':
+            currentMesh = createExtrude(extrudeControls);
+            extrudeGuiFolder.show();
+            break
     }
+    console.log("Extrude Mesh Position:", currentMesh.position);
+    console.log("Extrude Mesh Scale:", currentMesh.scale);
 
     scene.add(currentMesh);
 }
